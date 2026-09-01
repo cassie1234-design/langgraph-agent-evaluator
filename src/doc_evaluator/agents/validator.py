@@ -76,6 +76,12 @@ def make_validator(settings: Settings, registry: ToolRegistry):
 
             deterministic = [Finding.model_validate(f) for f in result.value["findings"]]
             seen_rules = {f.rule_id for f in deterministic}
+            # Dedupe by *location*, not just by rule id. The model is told not to
+            # repeat the deterministic findings, but it repeats them under its own
+            # rule id — "llm.no_prose" and "op.no_documentation" are the same
+            # observation about the same operation. Matching on (path, category)
+            # catches that; matching on rule_id alone never can.
+            seen_locations = {(f.json_path, f.category) for f in deterministic}
 
             # -- pass 2: qualitative ---------------------------------------
             security = (spec.get("components") or {}).get("securitySchemes") or {}
@@ -88,6 +94,9 @@ def make_validator(settings: Settings, registry: ToolRegistry):
                 "has_auth_scheme": bool(security),
                 "auth_applied": auth_applied,
                 "already_reported_rule_ids": sorted(seen_rules),
+                "already_reported_locations": sorted(
+                    f"{path} ({category})" for path, category in seen_locations
+                ),
             }
 
             qualitative: list[Finding] = []
@@ -106,6 +115,9 @@ def make_validator(settings: Settings, registry: ToolRegistry):
                 for item in review.findings:
                     if item.rule_id in seen_rules:
                         continue  # the rules already said this
+                    if (item.json_path, item.category) in seen_locations:
+                        continue  # same observation, different rule id
+                    seen_locations.add((item.json_path, item.category))
                     qualitative.append(
                         Finding(
                             rule_id=item.rule_id,

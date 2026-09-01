@@ -108,6 +108,9 @@ def _synth_review(ctx: dict[str, Any]) -> dict[str, Any]:
     """Judge description quality from the operation digest in the context block."""
     findings: list[dict[str, Any]] = []
     operations = ctx.get("operations") or []
+    # Mirror the instruction the live model is given: do not restate a finding
+    # the deterministic rules already made about this location.
+    covered = set(ctx.get("already_reported_locations") or [])
 
     for op in operations[:25]:
         path = op.get("path", "?")
@@ -116,13 +119,17 @@ def _synth_review(ctx: dict[str, Any]) -> dict[str, Any]:
         description = (op.get("description") or "").strip()
         blob = f"{summary} {description}".strip()
 
+        location = f"$.paths['{path}'].{method.lower()}"
+        if f"{location} (clarity)" in covered:
+            continue
+
         if not blob:
             findings.append(
                 {
                     "rule_id": "llm.no_prose",
                     "severity": "major",
                     "category": "clarity",
-                    "json_path": f"$.paths['{path}'].{method.lower()}",
+                    "json_path": location,
                     "message": (
                         f"{method} {path} carries neither a summary nor a description, so an "
                         "integrator cannot tell what it does without reading the schema."
@@ -136,7 +143,7 @@ def _synth_review(ctx: dict[str, Any]) -> dict[str, Any]:
                     "rule_id": "llm.thin_prose",
                     "severity": "minor",
                     "category": "clarity",
-                    "json_path": f"$.paths['{path}'].{method.lower()}",
+                    "json_path": location,
                     "message": (
                         f"{method} {path} is documented as {blob!r}, which restates the path "
                         "rather than explaining behaviour, preconditions or side effects."

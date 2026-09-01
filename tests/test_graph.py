@@ -78,6 +78,40 @@ class TestFailureHandling:
         assert "iteration ceiling" in result.state["halt_reason"]
 
 
+class TestFindingDeduplication:
+    """The deterministic and qualitative passes must not both report one defect."""
+
+    def test_no_two_findings_share_a_location_and_category(self, settings):
+        for fixture in ("petstore.json", "legacy_billing.yaml", "broken_inventory.json"):
+            result = evaluate(str(SPECS / fixture), settings)
+            pairs = [(f.json_path, f.category) for f in result.findings]
+            assert len(pairs) == len(set(pairs)), f"{fixture} double-counts a defect"
+
+    def test_qualitative_finding_is_suppressed_when_a_rule_covers_it(self, settings):
+        """`llm.no_prose` and `op.no_documentation` are the same observation.
+
+        They carry different rule ids, so id-based deduplication cannot catch
+        the overlap — only matching on (json_path, category) can.
+        """
+        result = evaluate(str(SPECS / "broken_inventory.json"), settings)
+        clarity = [f for f in result.findings if f.category == "clarity"]
+        by_path = {}
+        for finding in clarity:
+            by_path.setdefault(finding.json_path, []).append(finding)
+        assert all(len(group) == 1 for group in by_path.values())
+
+    def test_qualitative_findings_survive_where_they_are_genuinely_new(self, settings):
+        """Deduplication must not silently delete the model's actual contribution."""
+        result = evaluate(str(SPECS / "legacy_billing.yaml"), settings)
+        llm_findings = [f for f in result.findings if f.source == "llm"]
+        assert llm_findings, "the qualitative pass contributed nothing"
+        assert {f.rule_id for f in llm_findings} <= {
+            "llm.thin_prose",
+            "llm.no_prose",
+            "llm.auth_unexplained",
+        }
+
+
 class TestRedactionInPipeline:
     def test_credentials_are_stripped_before_reaching_the_model(self, settings):
         result = evaluate(str(SPECS / "legacy_billing.yaml"), settings)
@@ -103,29 +137,12 @@ class TestHumanInTheLoop:
 
     @staticmethod
     def _risky_graph(settings, approver):
-        """A one-node graph whose node makes a HIGH_RISK call."""
-        from langgraph.checkpoint.memory import MemorySaver
-        from langgraph.graph import END, START, StateGraph
-        from typing_extensions import TypedDict
+        """The shipped sandbox graph, so the tests exercise what the UI runs."""
+        from doc_evaluator.demo import build_approval_demo_graph
 
-        from doc_evaluator.tools.registry import ToolRegistry
-
-        class S(TypedDict, total=False):
-            outcome: str
-            approved: bool
-
-        registry = ToolRegistry(settings=settings, approver=approver)
-        registry.tools["purge_cache"] = lambda **kw: {"deleted": ["x"], "count": 1}
-
-        def node(state):
-            result = registry.call("purge_cache", pattern="specs/x.json")
-            return {"outcome": "ran" if result.ok else "refused", "approved": result.ok}
-
-        builder = StateGraph(S)
-        builder.add_node("risky", node)
-        builder.add_edge(START, "risky")
-        builder.add_edge("risky", END)
-        return builder.compile(checkpointer=MemorySaver())
+        return build_approval_demo_graph(
+            settings, "purge_cache", {"pattern": "specs/x.json"}, approver
+        )
 
     def test_high_risk_call_suspends_the_graph(self, settings):
         graph = self._risky_graph(settings, interrupt_approver)
@@ -148,7 +165,9 @@ class TestHumanInTheLoop:
         graph.invoke({}, config)
         graph.invoke(Command(resume={"approved": True}), config)
 
-        assert graph.get_state(config).values["outcome"] == "ran"
+        values = graph.get_state(config).values
+        assert values["outcome"] == "executed"
+        assert values["detail"]["approved"] is True
 
     def test_resuming_with_denial_refuses_the_call(self, settings):
         from langgraph.types import Command
@@ -158,7 +177,9 @@ class TestHumanInTheLoop:
         graph.invoke({}, config)
         graph.invoke(Command(resume={"approved": False}), config)
 
-        assert graph.get_state(config).values["outcome"] == "refused"
+        values = graph.get_state(config).values
+        assert values["outcome"] == "refused"
+        assert values["detail"]["value"]["status"] == "denied_by_operator"
 
     def test_the_evaluation_path_never_needs_approval(self, settings):
         """A documentation evaluator has no business calling a HIGH_RISK tool."""
