@@ -267,6 +267,7 @@ src/doc_evaluator/
   graph.py          star topology, checkpointer, run driver
   state.py          typed graph state and domain objects
   schemas.py        structured-output contracts for every model call
+  samples.py        credential-shaped test values, assembled at runtime
   agents/           supervisor + fetcher / validator / reporter
   guardrails/       engine.py · predicates.py · policy.yaml · redaction.py · budget.py
   observability/    pricing.py · ledger.py · instrument.py

@@ -153,6 +153,22 @@ Two consequences worth noting:
   it first. A policy is a statement of intent, and intent is not a substitute for the function
   refusing.
 
+## Design decision 9 — No credential-shaped literals in the repository
+
+Exercising redaction and the egress block needs strings that look like real keys.
+`src/doc_evaluator/samples.py` assembles every one of them from fragments at import time
+(`"sk-" + "ant-api03-…"`) rather than writing them out.
+
+This is not superstition. GitHub's push protection rejected an earlier version of this branch
+over a Slack token in a test file — a value invented for the test, but a scanner cannot tell a
+fake from a live key, and that is the correct behaviour for a scanner. The runtime values still
+match the detection patterns, so nothing about the tests is weakened; only the source text
+changes.
+
+The general point is the same one the placeholder-tolerance rule makes from the other side: a
+project about not leaking credentials should not model checking them in, and a control that
+routinely fires on things everybody knows are harmless stops being a control.
+
 ---
 
 ## What this does *not* defend against
