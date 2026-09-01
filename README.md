@@ -1,5 +1,7 @@
 # Multi-Agent API Documentation Evaluator
 
+[![CI](https://github.com/cassie1234-design/langgraph-agent-evaluator/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/cassie1234-design/langgraph-agent-evaluator/actions/workflows/ci.yml)
+
 A supervisor-routed multi-agent system that evaluates OpenAPI documents and produces a scored,
 actionable report — built around a **tiered guardrail layer** where risk is a property of the
 call rather than of the tool, and a **per-run cost ledger** that prices every model call and
@@ -276,7 +278,8 @@ src/doc_evaluator/
   llm/              client.py · replay.py · prompt_context.py
 ui/app.py           Streamlit front end
 benchmarks/         guardrail overhead measurement
-tests/              178 tests
+scripts/smoke.py    end-to-end assertions against the installed console script
+tests/              192 tests
 ```
 
 `docs/architecture.md` covers the design tradeoffs and what was rejected;
@@ -286,7 +289,7 @@ tests/              178 tests
 
 ## Testing
 
-178 tests, no network and no API key required.
+192 tests, no network and no API key required.
 
 ```
 tests/test_guardrail_engine.py    tiers, escalation, every predicate, policy load-time validation
@@ -299,7 +302,13 @@ tests/test_demo_sandbox.py        every sandbox call reaches its advertised outc
 tests/test_ledger.py              pricing, span isolation, ambient-context correctness
 ```
 
-Two of these are regression guards for bugs found during the build, described in
+CI runs the suite on Python 3.11, 3.12 and 3.13, lints with ruff, and then runs
+`scripts/smoke.py` — which drives the installed console script in a subprocess and asserts on the
+scores it returns. The unit suite imports modules directly and so cannot catch a broken entry
+point; an earlier commit on this branch shipped exactly that. No job has an API key, which is what
+makes a green run evidence for the offline claim above.
+
+Several are regression guards for bugs found during the build, described in
 `docs/architecture.md`.
 
 ## License

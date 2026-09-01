@@ -82,12 +82,47 @@ def _facts(state: EvalState) -> dict[str, Any]:
         "has_report": bool(state.get("report")),
         "iteration": state.get("iteration", 0),
         "last_error": artifacts.get("last_error"),
+        # A fetch that already ran and produced nothing is the difference between
+        # "not fetched yet" and "cannot be fetched". Without these two facts the
+        # ladder below cannot tell them apart, and re-dispatches forever.
+        "fetch_attempts": list(state.get("completed") or []).count("fetcher"),
+        "fetch_refused": bool(artifacts.get("refused")),
     }
+
+
+# One retry, not eleven. The tool layer already does its own exponential backoff
+# for transient transport failures, so a second graph-level attempt covers the
+# case where that ran out, and nothing beyond it is worth paying for.
+MAX_FETCH_ATTEMPTS = 2
 
 
 def _apply_preconditions(proposal: str, facts: dict[str, Any]) -> tuple[str, str | None]:
     """Return ``(route, override_reason)``. ``None`` means the model's choice stood."""
     completed = set(facts["completed"])
+
+    # This comes first because every rule below assumes a missing specification
+    # is still obtainable. When the fetcher has already run and come back
+    # empty-handed, it is not: routing to it again produces an identical failure
+    # and pays for another routing call to discover that. Left unchecked the run
+    # burns every iteration in its budget before the ceiling stops it.
+    if not facts["has_artifact"] and facts.get("fetch_attempts"):
+        if facts.get("fetch_refused"):
+            # A policy refusal is terminal by contract - the refusal payload says
+            # so in as many words - so a retry cannot change the outcome.
+            return "finish", (
+                "The fetch was refused by policy, which is terminal by contract; "
+                "retrying cannot change the outcome."
+            )
+        if facts["fetch_attempts"] >= MAX_FETCH_ATTEMPTS:
+            detail = facts.get("last_error") or "no specification was returned"
+            return "finish", (
+                f"The fetch failed on {facts['fetch_attempts']} attempts ({detail}); "
+                "there is nothing to validate."
+            )
+        return "fetcher", (
+            "The fetch produced no specification; retrying once before giving up "
+            f"(attempt {facts['fetch_attempts'] + 1} of {MAX_FETCH_ATTEMPTS})."
+        )
 
     if proposal == "validator" and not facts["has_artifact"]:
         return "fetcher", "Validation needs a parsed specification; none has been fetched yet."
@@ -197,11 +232,20 @@ def make_supervisor(settings: Settings):
                 source = "precondition"
 
             goto = "__end__" if final == "finish" else final
+            update: dict[str, Any] = {
+                "iteration": iteration + 1,
+                "next_worker": final,
+            }
+            # Finishing with nothing to show is an outcome the caller has to be
+            # able to see; without this the CLI reports a bare zero score and no
+            # explanation of why the evaluation never happened.
+            if final == "finish" and not facts["has_report"]:
+                update["halt_reason"] = reason
+
             return Command(
                 goto=goto,
                 update={
-                    "iteration": iteration + 1,
-                    "next_worker": final,
+                    **update,
                     "route_log": [
                         RouteRecord(
                             iteration=iteration,

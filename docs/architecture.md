@@ -108,10 +108,10 @@ ambient, held in a `ContextVar` and scoped by `use_ledger()`.
 Guardrail evaluation gets its own span *kind*, which is what makes "what do the guardrails cost?"
 a query against the ledger rather than an estimate.
 
-## 7. Two bugs worth writing down
+## 7. Three bugs worth writing down
 
-Both are locked in by regression tests, and both were the kind that pass every test you would
-have thought to write.
+All are locked in by regression tests, and all were the kind that pass every test you would have
+thought to write.
 
 ### `max()` on a `str`-based enum
 
@@ -142,6 +142,37 @@ inside the noise band and agrees with the direct measurement.
 
 The reporting changed too. A benchmark that prints `-1.14 ms (-7.55%)` without saying that the
 noise band is ±1.48 ms is not reporting a measurement, it is reporting a coin flip.
+
+### A refused fetch retried until the budget ceiling
+
+Found while wiring up CI, by reading a smoke-test failure rather than a test failure.
+
+`_apply_preconditions` knew how to stop a worker that had already *succeeded* from being
+re-dispatched, but had no notion of one that had already *failed*. On an unfetchable target —
+an SSRF refusal, a path escaping the workspace, a 404 — the ladder saw `has_artifact=False`,
+concluded the specification had not been fetched yet, and routed to the fetcher again. Twelve
+times, until the iteration ceiling stopped it, paying for a routing call each time to rediscover
+an identical failure.
+
+The ceiling did its job, which is exactly why this was invisible: the run terminated, the tests
+asserting "refused and still terminates" passed, and nothing was obviously wrong unless you looked
+at the span counts. The cost was real though — $0.0265 against $0.0036 for the same doomed target
+after the fix, on the cheap mock path; on live Opus 5 against a large document it is twelve times
+the intended spend on a target that was never going to work.
+
+The fix is one rule placed *ahead* of every other precondition, because all of them assume a
+missing specification is still obtainable:
+
+* a **policy refusal is terminal** and earns no retry at all — the refusal payload says in as many
+  words that it will not succeed on retry, so honouring that is just believing our own contract;
+* any other failure earns exactly **one** retry, since the tool layer already does its own
+  exponential backoff for transient transport errors and a second graph-level attempt is where the
+  useful retries end.
+
+Two lessons worth keeping. A budget ceiling is a backstop, not a policy — if it is the thing
+ending your runs, something upstream is not converging. And a test that asserts termination should
+also assert *how fast*: `test_a_doomed_run_costs_a_fraction_of_a_real_one` is the check that would
+have caught this.
 
 ## 8. What was deliberately left out
 

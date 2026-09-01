@@ -254,6 +254,16 @@ def main(argv: list[str] | None = None) -> int:
         help="Rounds of the direct policy microbenchmark (10 calls per round).",
     )
     parser.add_argument("--out", type=Path, default=None, help="Where to write the JSON result.")
+    parser.add_argument(
+        "--results-dir",
+        type=Path,
+        default=None,
+        help=(
+            "Directory for both output files (default: benchmarks/results). A smoke run with "
+            "tiny sample sizes should point this elsewhere so it cannot overwrite published "
+            "results with numbers that mean nothing."
+        ),
+    )
     args = parser.parse_args(argv)
 
     mode = "live" if args.live else "mock"
@@ -304,12 +314,15 @@ def main(argv: list[str] | None = None) -> int:
         "samples": {"guardrails_off": off["samples"], "guardrails_on": on["samples"]},
     }
 
-    RESULTS_DIR.mkdir(parents=True, exist_ok=True)
-    out = args.out or RESULTS_DIR / f"guardrail_overhead_{mode}.json"
+    results_dir = args.results_dir or RESULTS_DIR
+    results_dir.mkdir(parents=True, exist_ok=True)
+    out = args.out or results_dir / f"guardrail_overhead_{mode}.json"
+    out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(payload, indent=2))
 
     table = markdown_table(on, off, micro)
-    (RESULTS_DIR / f"guardrail_overhead_{mode}.md").write_text(table + "\n")
+    markdown_path = results_dir / f"guardrail_overhead_{mode}.md"
+    markdown_path.write_text(table + "\n")
 
     print("\n" + table)
     print("\nSlowest policy decisions (median):")
@@ -320,7 +333,7 @@ def main(argv: list[str] | None = None) -> int:
         f"{on['guardrail_evaluations']:.0f} evaluations per run "
         f"= {policy_cost_ms(micro, on):.3f} ms of policy cost."
     )
-    print(f"\njson → {out}\nmarkdown → {RESULTS_DIR / f'guardrail_overhead_{mode}.md'}")
+    print(f"\njson → {out}\nmarkdown → {markdown_path}")
     return 0
 
 

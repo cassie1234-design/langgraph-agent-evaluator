@@ -71,6 +71,28 @@ class TestFailureHandling:
         assert artifacts["refusal"]["risk_tier"] == "FORBIDDEN"
         assert not result.state.get("spec")
 
+    def test_a_refused_fetch_stops_after_one_attempt(self, settings):
+        """Regression: this used to retry until the iteration ceiling.
+
+        Twelve fetches, twelve routing calls and twelve times the intended spend,
+        all to rediscover a refusal that is terminal by contract.
+        """
+        result = evaluate("http://169.254.169.254/latest/meta-data/", settings)
+        assert result.state["completed"].count("fetcher") == 1
+        assert len(result.state["route_log"]) <= 3
+        assert "terminal" in (result.state.get("halt_reason") or "")
+
+    def test_an_unreachable_target_gets_exactly_one_retry(self, settings):
+        result = evaluate(str(SPECS / "does_not_exist.json"), settings)
+        assert result.state["completed"].count("fetcher") == 2
+        assert "there is nothing to validate" in (result.state.get("halt_reason") or "")
+
+    def test_a_doomed_run_costs_a_fraction_of_a_real_one(self, settings):
+        """The point of stopping early is not tidiness, it is spend."""
+        doomed = evaluate("http://169.254.169.254/latest/meta-data/", settings)
+        real = evaluate(str(SPECS / "petstore.json"), settings)
+        assert doomed.ledger.total_usd < real.ledger.total_usd
+
     def test_iteration_ceiling_halts_the_run(self, settings):
         capped = settings.replace(max_iterations=1)
         result = evaluate(str(SPECS / "petstore.json"), capped)

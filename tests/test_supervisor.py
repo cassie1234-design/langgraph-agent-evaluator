@@ -4,13 +4,24 @@ from __future__ import annotations
 
 import pytest
 
-from doc_evaluator.agents.supervisor import _apply_preconditions, _facts
+from doc_evaluator.agents.supervisor import (
+    MAX_FETCH_ATTEMPTS,
+    _apply_preconditions,
+    _facts,
+)
 from doc_evaluator.guardrails.budget import BudgetGuard
 from doc_evaluator.observability.ledger import RunLedger
 
 
 def facts(**over):
-    base = {"completed": [], "has_artifact": False, "has_report": False, "finding_count": 0}
+    base = {
+        "completed": [],
+        "has_artifact": False,
+        "has_report": False,
+        "finding_count": 0,
+        "fetch_attempts": 0,
+        "fetch_refused": False,
+    }
     base.update(over)
     return base
 
@@ -74,7 +85,72 @@ class TestPreconditions:
             assert route in {"fetcher", "validator", "reporter", "finish"}
 
 
+class TestUnfetchableTarget:
+    """A fetch that already failed is not the same as a fetch that has not happened.
+
+    Without this distinction the ladder sees `has_artifact=False`, routes to the
+    fetcher, and does so again on every hop until the iteration ceiling - paying
+    for a routing call each time to rediscover the same failure.
+    """
+
+    def test_policy_refusal_is_terminal(self):
+        route, override = _apply_preconditions(
+            "fetcher", facts(completed=["fetcher"], fetch_attempts=1, fetch_refused=True)
+        )
+        assert route == "finish"
+        assert "terminal" in override
+
+    def test_refusal_is_terminal_on_the_first_attempt(self):
+        """A refusal earns no retry at all - the refusal payload says as much."""
+        for attempts in (1, 2, 5):
+            route, _ = _apply_preconditions(
+                "fetcher", facts(completed=["fetcher"], fetch_attempts=attempts, fetch_refused=True)
+            )
+            assert route == "finish"
+
+    def test_a_plain_failure_gets_exactly_one_retry(self):
+        route, override = _apply_preconditions(
+            "fetcher", facts(completed=["fetcher"], fetch_attempts=1, last_error="404")
+        )
+        assert route == "fetcher" and "retrying" in override
+
+    def test_retries_stop_at_the_ceiling(self):
+        route, override = _apply_preconditions(
+            "fetcher",
+            facts(completed=["fetcher"] * 2, fetch_attempts=MAX_FETCH_ATTEMPTS, last_error="404"),
+        )
+        assert route == "finish"
+        assert "404" in override, "the reason should name the actual failure"
+
+    def test_the_rule_does_not_fire_before_the_first_attempt(self):
+        route, _ = _apply_preconditions("fetcher", facts())
+        assert route == "fetcher"
+
+    def test_the_rule_does_not_fire_once_a_spec_exists(self):
+        route, _ = _apply_preconditions(
+            "validator",
+            facts(completed=["fetcher"], fetch_attempts=1, has_artifact=True),
+        )
+        assert route == "validator"
+
+    @pytest.mark.parametrize("proposal", ["fetcher", "validator", "reporter", "finish"])
+    def test_no_proposal_can_resurrect_an_unfetchable_target(self, proposal):
+        route, _ = _apply_preconditions(
+            proposal, facts(completed=["fetcher"], fetch_attempts=1, fetch_refused=True)
+        )
+        assert route == "finish", f"{proposal!r} escaped the terminal-failure rule"
+
+
 class TestFacts:
+    def test_facts_count_fetch_attempts_and_notice_refusal(self):
+        state = {
+            "artifacts": {"refused": True, "last_error": "blocked"},
+            "completed": ["fetcher", "fetcher"],
+        }
+        result = _facts(state)
+        assert result["fetch_attempts"] == 2
+        assert result["fetch_refused"] is True
+
     def test_facts_summarise_state_without_the_whole_spec(self):
         state = {
             "artifacts": {"spec": {"openapi": "3.0.0"}, "operation_count": 7, "source": "x.json"},
