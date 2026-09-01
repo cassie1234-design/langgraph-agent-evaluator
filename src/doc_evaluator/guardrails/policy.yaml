@@ -1,0 +1,123 @@
+# Guardrail policy for the documentation evaluator.
+#
+# Two properties this file is built around:
+#
+#  1. DENY BY DEFAULT. A tool that is not listed here gets `default_tier`, which
+#     is SENSITIVE, not SAFE. Adding a tool to the codebase without thinking
+#     about its risk should be noisy, not free.
+#
+#  2. RULES ONLY ESCALATE. A rule can raise a call's tier; nothing can lower it.
+#     That makes the policy monotonic — you can read any single rule and know it
+#     cannot be the reason something dangerous slipped through, which is not
+#     true of an allow/deny list where ordering decides the outcome.
+#
+# Tier -> action:  SAFE = run | SENSITIVE = run + audit
+#                  HIGH_RISK = pause for human approval | FORBIDDEN = never run
+
+version: 1
+default_tier: SENSITIVE
+
+tools:
+
+  # ---- read-only documentation tools -----------------------------------
+
+  fetch_document:
+    tier: SAFE
+    description: Retrieve an OpenAPI spec or documentation page.
+    rules:
+      - id: fetch.ssrf
+        arg: url
+        predicate: private_network_url
+        escalate_to: FORBIDDEN
+        reason: >-
+          Fetching a private or link-local address turns the agent into an SSRF
+          proxy into the host's own network — the cloud metadata endpoint is the
+          canonical target. No evaluation task needs this, so it is never
+          approvable rather than merely confirmable.
+
+      - id: fetch.off_allowlist
+        arg: url
+        predicate: url_not_in_allowlist
+        escalate_to: SENSITIVE
+        reason: >-
+          Off-allowlist hosts are still legitimate targets — the whole point is
+          evaluating third-party APIs — but the fetch is audited so the operator
+          can see what the agent chose to read.
+
+      - id: fetch.plaintext
+        arg: url
+        predicate: insecure_scheme
+        escalate_to: SENSITIVE
+        reason: Plaintext transport means the fetched spec is attacker-modifiable in flight.
+
+      - id: fetch.path_escape
+        arg: url
+        predicate: path_escapes_workspace
+        escalate_to: FORBIDDEN
+        reason: >-
+          A local read resolving outside the project directory is the filesystem
+          equivalent of the SSRF case — the agent reaching for host state that has
+          nothing to do with evaluating an API document. There is no legitimate
+          version of it to approve.
+
+      - id: fetch.local_read
+        arg: url
+        predicate: local_filesystem_read
+        escalate_to: SENSITIVE
+        reason: >-
+          Reading from disk is how the offline fixtures work, so it stays allowed —
+          but it is audited, because "which file did the agent decide to open" is
+          something the operator should be able to answer after the fact.
+
+  parse_openapi:
+    tier: SAFE
+    description: Parse fetched text into a spec object. Pure, local, no side effects.
+
+  validate_spec:
+    tier: SAFE
+    description: Run the deterministic rule set over a parsed spec.
+
+  # ---- tools with real-world side effects -------------------------------
+
+  send_external_report:
+    tier: HIGH_RISK
+    description: POST the finished evaluation report to an outbound webhook.
+    rules:
+      - id: egress.secret_leak
+        arg: body
+        predicate: payload_contains_secret
+        escalate_to: FORBIDDEN
+        reason: >-
+          The report is assembled from content the agent fetched from an
+          untrusted source. If a credential survived redaction and reached the
+          report body, an outbound POST would exfiltrate it. A human cannot
+          usefully review that in a dialog box, so it is blocked outright.
+
+      - id: egress.unknown_destination
+        arg: webhook_url
+        predicate: url_not_in_allowlist
+        escalate_to: FORBIDDEN
+        reason: >-
+          The destination is exactly what a prompt-injected instruction in a
+          fetched document would try to control. Approving a destination chosen
+          by untrusted input is not a decision a human should be asked to make.
+
+      - id: egress.ssrf
+        arg: webhook_url
+        predicate: private_network_url
+        escalate_to: FORBIDDEN
+        reason: Outbound POST into the internal network — same SSRF class as fetch.ssrf.
+
+  purge_cache:
+    tier: HIGH_RISK
+    description: Delete cached specs and prior evaluation artifacts.
+    rules:
+      - id: delete.unbounded_scope
+        arg: pattern
+        predicate: bulk_scope
+        escalate_to: FORBIDDEN
+        reason: >-
+          A bounded delete is recoverable and a human can meaningfully approve
+          it. A wildcard delete is the one call where an approval prompt is a
+          liability: the operator sees a plausible-looking request and clicks
+          yes. Removing the option is the safer default.

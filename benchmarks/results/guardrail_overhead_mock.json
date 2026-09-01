@@ -1,0 +1,432 @@
+{
+  "generated_at": "2026-09-01T07:35:34+00:00",
+  "mode": "mock",
+  "model": "claude-opus-5",
+  "fixtures": [
+    "petstore.json",
+    "legacy_billing.yaml",
+    "broken_inventory.json"
+  ],
+  "repeats_per_fixture": 6,
+  "warmup_per_fixture": 2,
+  "policy_microbenchmark": {
+    "evaluations": 4000,
+    "mean_us": 27.934555002048,
+    "median_us": 23.135999981604982,
+    "p95_us": 74.7880001199519,
+    "p99_us": 115.47999997674196,
+    "by_call_median_us": {
+      "fetch_document(url=fixtures/specs/petstore.json)": 60.83450000460289,
+      "send_external_report(webhook_url=https://petstore3.swagger.io/h)": 38.72500008128554,
+      "fetch_document(url=http://169.254.169.254/latest/meta)": 19.830999917758163,
+      "fetch_document(url=https://petstore3.swagger.io/api/v)": 19.54300012130261,
+      "fetch_document(url=https://cdn.unknown-vendor.example)": 19.12849995733268,
+      "purge_cache(pattern=*)": 7.561499955954787,
+      "validate_spec(spec={})": 7.046499831631081,
+      "purge_cache(pattern=specs/petstore.json)": 6.783000117138727,
+      "parse_openapi(text={})": 5.677499984813039
+    }
+  },
+  "guardrails_off": {
+    "label": "guardrails_off",
+    "runs": 18,
+    "mean_ms": 13.201796277788466,
+    "median_ms": 11.87471799994455,
+    "p50_ms": 11.798610999903758,
+    "p95_ms": 16.8272110001908,
+    "stdev_ms": 3.252603432899766,
+    "guardrail_ms_mean": 0.1577111111111111,
+    "guardrail_evaluations": 3.0,
+    "tokens_mean": 1585.3333333333333,
+    "usd_mean": 0.017053333333333334
+  },
+  "guardrails_on": {
+    "label": "guardrails_on",
+    "runs": 18,
+    "mean_ms": 13.632899611113519,
+    "median_ms": 12.608646499984388,
+    "p50_ms": 12.408475000029284,
+    "p95_ms": 18.002893000129916,
+    "stdev_ms": 2.672589316685293,
+    "guardrail_ms_mean": 0.5654055555555556,
+    "guardrail_evaluations": 3.0,
+    "tokens_mean": 1585.3333333333333,
+    "usd_mean": 0.017053333333333334
+  },
+  "delta": {
+    "mean_ms": 0.43110333332505313,
+    "mean_pct": 3.26548997010633,
+    "noise_band_ms": 1.9845045699883945,
+    "within_noise": true,
+    "policy_cost_per_run_ms": 0.06940799994481495,
+    "p95_ms": 1.1756819999391155,
+    "tokens": 0.0,
+    "usd": 0.0
+  },
+  "samples": {
+    "guardrails_off": [
+      {
+        "wall_ms": 14.380814000105602,
+        "guardrail_ms": 0.2115,
+        "guardrail_evaluations": 3,
+        "tokens": 1099,
+        "usd": 0.010055,
+        "score": 100,
+        "findings": 0,
+        "fixture": "petstore.json"
+      },
+      {
+        "wall_ms": 11.950824999985343,
+        "guardrail_ms": 0.2542,
+        "guardrail_evaluations": 3,
+        "tokens": 1099,
+        "usd": 0.010055,
+        "score": 100,
+        "findings": 0,
+        "fixture": "petstore.json"
+      },
+      {
+        "wall_ms": 12.166617000048063,
+        "guardrail_ms": 0.2007,
+        "guardrail_evaluations": 3,
+        "tokens": 1099,
+        "usd": 0.010055,
+        "score": 100,
+        "findings": 0,
+        "fixture": "petstore.json"
+      },
+      {
+        "wall_ms": 10.483084000043164,
+        "guardrail_ms": 0.255,
+        "guardrail_evaluations": 3,
+        "tokens": 1099,
+        "usd": 0.010055,
+        "score": 100,
+        "findings": 0,
+        "fixture": "petstore.json"
+      },
+      {
+        "wall_ms": 9.634972999947422,
+        "guardrail_ms": 0.2155,
+        "guardrail_evaluations": 3,
+        "tokens": 1099,
+        "usd": 0.010055,
+        "score": 100,
+        "findings": 0,
+        "fixture": "petstore.json"
+      },
+      {
+        "wall_ms": 10.382942999967781,
+        "guardrail_ms": 0.206,
+        "guardrail_evaluations": 3,
+        "tokens": 1099,
+        "usd": 0.010055,
+        "score": 100,
+        "findings": 0,
+        "fixture": "petstore.json"
+      },
+      {
+        "wall_ms": 15.885310999919966,
+        "guardrail_ms": 0.1567,
+        "guardrail_evaluations": 3,
+        "tokens": 2086,
+        "usd": 0.02431,
+        "score": 0,
+        "findings": 24,
+        "fixture": "legacy_billing.yaml"
+      },
+      {
+        "wall_ms": 16.771750000089014,
+        "guardrail_ms": 0.1361,
+        "guardrail_evaluations": 3,
+        "tokens": 2086,
+        "usd": 0.02431,
+        "score": 0,
+        "findings": 24,
+        "fixture": "legacy_billing.yaml"
+      },
+      {
+        "wall_ms": 16.616479000049367,
+        "guardrail_ms": 0.1677,
+        "guardrail_evaluations": 3,
+        "tokens": 2086,
+        "usd": 0.02431,
+        "score": 0,
+        "findings": 24,
+        "fixture": "legacy_billing.yaml"
+      },
+      {
+        "wall_ms": 16.8272110001908,
+        "guardrail_ms": 0.1509,
+        "guardrail_evaluations": 3,
+        "tokens": 2086,
+        "usd": 0.02431,
+        "score": 0,
+        "findings": 24,
+        "fixture": "legacy_billing.yaml"
+      },
+      {
+        "wall_ms": 15.985086000000592,
+        "guardrail_ms": 0.1419,
+        "guardrail_evaluations": 3,
+        "tokens": 2086,
+        "usd": 0.02431,
+        "score": 0,
+        "findings": 24,
+        "fixture": "legacy_billing.yaml"
+      },
+      {
+        "wall_ms": 21.558946999903128,
+        "guardrail_ms": 0.1958,
+        "guardrail_evaluations": 3,
+        "tokens": 2086,
+        "usd": 0.02431,
+        "score": 0,
+        "findings": 24,
+        "fixture": "legacy_billing.yaml"
+      },
+      {
+        "wall_ms": 10.6686090000494,
+        "guardrail_ms": 0.0725,
+        "guardrail_evaluations": 3,
+        "tokens": 1571,
+        "usd": 0.016795,
+        "score": 0,
+        "findings": 10,
+        "fixture": "broken_inventory.json"
+      },
+      {
+        "wall_ms": 11.5294670001731,
+        "guardrail_ms": 0.1054,
+        "guardrail_evaluations": 3,
+        "tokens": 1571,
+        "usd": 0.016795,
+        "score": 0,
+        "findings": 10,
+        "fixture": "broken_inventory.json"
+      },
+      {
+        "wall_ms": 10.575848999906157,
+        "guardrail_ms": 0.0861,
+        "guardrail_evaluations": 3,
+        "tokens": 1571,
+        "usd": 0.016795,
+        "score": 0,
+        "findings": 10,
+        "fixture": "broken_inventory.json"
+      },
+      {
+        "wall_ms": 10.21223599991572,
+        "guardrail_ms": 0.088,
+        "guardrail_evaluations": 3,
+        "tokens": 1571,
+        "usd": 0.016795,
+        "score": 0,
+        "findings": 10,
+        "fixture": "broken_inventory.json"
+      },
+      {
+        "wall_ms": 11.798610999903758,
+        "guardrail_ms": 0.1068,
+        "guardrail_evaluations": 3,
+        "tokens": 1571,
+        "usd": 0.016795,
+        "score": 0,
+        "findings": 10,
+        "fixture": "broken_inventory.json"
+      },
+      {
+        "wall_ms": 10.203520999993998,
+        "guardrail_ms": 0.088,
+        "guardrail_evaluations": 3,
+        "tokens": 1571,
+        "usd": 0.016795,
+        "score": 0,
+        "findings": 10,
+        "fixture": "broken_inventory.json"
+      }
+    ],
+    "guardrails_on": [
+      {
+        "wall_ms": 12.244171000020287,
+        "guardrail_ms": 0.5513,
+        "guardrail_evaluations": 3,
+        "tokens": 1099,
+        "usd": 0.010055,
+        "score": 100,
+        "findings": 0,
+        "fixture": "petstore.json"
+      },
+      {
+        "wall_ms": 12.808817999939492,
+        "guardrail_ms": 0.4924,
+        "guardrail_evaluations": 3,
+        "tokens": 1099,
+        "usd": 0.010055,
+        "score": 100,
+        "findings": 0,
+        "fixture": "petstore.json"
+      },
+      {
+        "wall_ms": 11.122784000008323,
+        "guardrail_ms": 0.7631,
+        "guardrail_evaluations": 3,
+        "tokens": 1099,
+        "usd": 0.010055,
+        "score": 100,
+        "findings": 0,
+        "fixture": "petstore.json"
+      },
+      {
+        "wall_ms": 12.408475000029284,
+        "guardrail_ms": 0.4285,
+        "guardrail_evaluations": 3,
+        "tokens": 1099,
+        "usd": 0.010055,
+        "score": 100,
+        "findings": 0,
+        "fixture": "petstore.json"
+      },
+      {
+        "wall_ms": 11.838270999987799,
+        "guardrail_ms": 0.7714,
+        "guardrail_evaluations": 3,
+        "tokens": 1099,
+        "usd": 0.010055,
+        "score": 100,
+        "findings": 0,
+        "fixture": "petstore.json"
+      },
+      {
+        "wall_ms": 11.272073999862187,
+        "guardrail_ms": 0.6248,
+        "guardrail_evaluations": 3,
+        "tokens": 1099,
+        "usd": 0.010055,
+        "score": 100,
+        "findings": 0,
+        "fixture": "petstore.json"
+      },
+      {
+        "wall_ms": 15.643788000033965,
+        "guardrail_ms": 0.5997,
+        "guardrail_evaluations": 3,
+        "tokens": 2086,
+        "usd": 0.02431,
+        "score": 0,
+        "findings": 24,
+        "fixture": "legacy_billing.yaml"
+      },
+      {
+        "wall_ms": 15.403966000121727,
+        "guardrail_ms": 0.5033,
+        "guardrail_evaluations": 3,
+        "tokens": 2086,
+        "usd": 0.02431,
+        "score": 0,
+        "findings": 24,
+        "fixture": "legacy_billing.yaml"
+      },
+      {
+        "wall_ms": 18.002893000129916,
+        "guardrail_ms": 0.3442,
+        "guardrail_evaluations": 3,
+        "tokens": 2086,
+        "usd": 0.02431,
+        "score": 0,
+        "findings": 24,
+        "fixture": "legacy_billing.yaml"
+      },
+      {
+        "wall_ms": 16.808309999987614,
+        "guardrail_ms": 0.591,
+        "guardrail_evaluations": 3,
+        "tokens": 2086,
+        "usd": 0.02431,
+        "score": 0,
+        "findings": 24,
+        "fixture": "legacy_billing.yaml"
+      },
+      {
+        "wall_ms": 18.631151000136015,
+        "guardrail_ms": 0.5332,
+        "guardrail_evaluations": 3,
+        "tokens": 2086,
+        "usd": 0.02431,
+        "score": 0,
+        "findings": 24,
+        "fixture": "legacy_billing.yaml"
+      },
+      {
+        "wall_ms": 17.88651599986224,
+        "guardrail_ms": 0.5835,
+        "guardrail_evaluations": 3,
+        "tokens": 2086,
+        "usd": 0.02431,
+        "score": 0,
+        "findings": 24,
+        "fixture": "legacy_billing.yaml"
+      },
+      {
+        "wall_ms": 11.357119999956922,
+        "guardrail_ms": 0.6363,
+        "guardrail_evaluations": 3,
+        "tokens": 1571,
+        "usd": 0.016795,
+        "score": 0,
+        "findings": 10,
+        "fixture": "broken_inventory.json"
+      },
+      {
+        "wall_ms": 10.760531999949308,
+        "guardrail_ms": 0.595,
+        "guardrail_evaluations": 3,
+        "tokens": 1571,
+        "usd": 0.016795,
+        "score": 0,
+        "findings": 10,
+        "fixture": "broken_inventory.json"
+      },
+      {
+        "wall_ms": 14.044684000054986,
+        "guardrail_ms": 0.7215,
+        "guardrail_evaluations": 3,
+        "tokens": 1571,
+        "usd": 0.016795,
+        "score": 0,
+        "findings": 10,
+        "fixture": "broken_inventory.json"
+      },
+      {
+        "wall_ms": 13.473275000023932,
+        "guardrail_ms": 0.7015,
+        "guardrail_evaluations": 3,
+        "tokens": 1571,
+        "usd": 0.016795,
+        "score": 0,
+        "findings": 10,
+        "fixture": "broken_inventory.json"
+      },
+      {
+        "wall_ms": 11.44927700011067,
+        "guardrail_ms": 0.2936,
+        "guardrail_evaluations": 3,
+        "tokens": 1571,
+        "usd": 0.016795,
+        "score": 0,
+        "findings": 10,
+        "fixture": "broken_inventory.json"
+      },
+      {
+        "wall_ms": 10.23608799982867,
+        "guardrail_ms": 0.443,
+        "guardrail_evaluations": 3,
+        "tokens": 1571,
+        "usd": 0.016795,
+        "score": 0,
+        "findings": 10,
+        "fixture": "broken_inventory.json"
+      }
+    ]
+  }
+}
