@@ -1,8 +1,13 @@
 name: CI
 
+# Push is scoped to main deliberately. Listing feature branches here as well
+# makes every commit on an open PR run the whole workflow twice — once for the
+# push and once for the pull_request — because the two events land in different
+# concurrency groups and cannot cancel each other. That is double the minutes
+# and ten check runs where five belong.
 on:
   push:
-    branches: [main, "claude/**"]
+    branches: [main]
   pull_request:
     branches: [main]
 
