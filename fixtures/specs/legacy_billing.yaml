@@ -1,0 +1,86 @@
+# A realistically bad specification: it parses, but an integrator would suffer.
+# Also carries a live-looking credential in an example, which exercises the
+# redaction guardrail on the way into the model's context.
+openapi: 3.0.1
+info:
+  title: Legacy Billing API
+  version: "0.9"
+servers:
+  - url: http://billing.internal.example.com/api
+paths:
+  /invoices:
+    get:
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Invoice"
+    post:
+      summary: api
+      parameters:
+        - name: account
+          in: query
+      requestBody:
+        content:
+          application/json: {}
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json: {}
+  /invoices/{id}:
+    get:
+      operationId: getInvoice
+      description: TBD
+      parameters:
+        - name: id
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: The invoice.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Invoice"
+    delete:
+      operationId: getInvoice
+      summary: Delete an invoice permanently, with no undo and no audit trail entry.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Invoice identifier.
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Deleted.
+components:
+  securitySchemes:
+    legacyKey:
+      type: apiKey
+      in: header
+      name: X-Api-Key
+  schemas:
+    Invoice:
+      type: object
+      properties:
+        id:
+          type: string
+        state:
+          type: string
+          enum: [draft, issued, paid, void]
+        currency:
+          type: string
+          enum: [USD, EUR, GBP]
+      example:
+        id: inv_1024
+        state: issued
+        curl_hint: "curl -H 'X-Api-Key: sk-ant-api03-SYNTHETIC0EXAMPLE0NOT0A0REAL0KEY' https://billing.internal.example.com/api/invoices"
+        contact: billing-ops@example.com
